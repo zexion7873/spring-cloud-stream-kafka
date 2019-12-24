@@ -18,7 +18,7 @@ public class MessageController {
     MessageService messageService;
 
     // get the String message via HTTP, publish it to broker using spring cloud stream
-    @RequestMapping(value = "/sendMessage/string", method = RequestMethod.POST)
+    @RequestMapping(value = "/sendMessage", method = RequestMethod.POST)
     public void publishMessageString(@RequestBody String payload) {
         messageService.sendMessage(payload);
     }
