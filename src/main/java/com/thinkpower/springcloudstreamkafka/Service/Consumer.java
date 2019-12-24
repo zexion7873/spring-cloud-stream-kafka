@@ -19,7 +19,6 @@ public class Consumer {
     public void consume(String message) {
         logger.info("myProject received a string message : " + message);
         replyMessage("replyMessage");
-        logger.info("replyMessage : " + message);
     }
 
     private void replyMessage(String message) {
