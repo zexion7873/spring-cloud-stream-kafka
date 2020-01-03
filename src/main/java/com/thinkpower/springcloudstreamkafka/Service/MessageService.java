@@ -1,11 +1,16 @@
 package com.thinkpower.springcloudstreamkafka.Service;
 
-import com.thinkpower.springcloudstreamkafka.Controller.MessageController;
+import com.thinkpower.springcloudstreamkafka.DTO.BookDTO;
+import com.thinkpower.springcloudstreamkafka.Interface.PolledProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MimeTypeUtils;
 
 @Service
 public class MessageService {
@@ -15,11 +20,16 @@ public class MessageService {
     @Autowired
     private Producer producer;
 
-    public void sendMessage(String payload) {
+    public void sendMessage(BookDTO bookDTO) {
         // send message to channel output
-        logger.info("send message from myProject : " + payload);
-        producer.getMysource().output()
-                .send(MessageBuilder.withPayload(payload).setHeader("type", "string").build());
+        Message<BookDTO> message = MessageBuilder
+                .withPayload(bookDTO)
+                .setHeader(MessageHeaders.CONTENT_TYPE, MimeTypeUtils.APPLICATION_JSON)
+                .setHeader("key", bookDTO.getName() + System.currentTimeMillis())
+                .build();
 
+        producer.getMysource().output().send(message);
+
+        logger.info("send message from myProject : {}", message);
     }
 }

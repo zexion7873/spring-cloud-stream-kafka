@@ -1,22 +1,25 @@
 package com.thinkpower.springcloudstreamkafka.Service;
 
+import com.thinkpower.springcloudstreamkafka.Interface.MyProcessor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.stream.annotation.EnableBinding;
-import org.springframework.cloud.stream.messaging.Source;
 
-@EnableBinding({Source.class})
+@EnableBinding({MyProcessor.class})
+//@EnableBinding({PolledProcessor.class})
 public class Producer {
-    private Source mySource;
+    private MyProcessor mySource;
 
-    public Producer(Source mySource) {
+    @Autowired
+    public Producer(MyProcessor mySource) {
         super();
         this.mySource = mySource;
     }
 
-    public Source getMysource() {
+    public MyProcessor getMysource() {
         return mySource;
     }
 
-    public void setMysource(Source mysource) {
+    public void setMysource(MyProcessor mysource) {
         mySource = mySource;
     }
 }
