@@ -7,9 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.StreamListener;
-import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.SendTo;
 
 @EnableBinding({Reply.class, MyProcessor.class})
@@ -19,8 +17,7 @@ public class Consumer {
 
     @StreamListener(target = MyProcessor.INPUT)
     @SendTo({Reply.OUTPUT})
-    public BookDTO consume(@Header("key") String key,
-                           Message<BookDTO> message) {
+    public BookDTO consume(Message<BookDTO> message) {
 
 //        Acknowledgment acknowledgment = message.getHeaders()
 //                .get(KafkaHeaders.ACKNOWLEDGMENT, Acknowledgment.class);
@@ -30,17 +27,22 @@ public class Consumer {
 //            System.out.println("Acknowledgment provided");
 //            acknowledgment.acknowledge();
 //        }
-        System.err.println("RECEIVED_MESSAGE_KEY : " + message.getHeaders().get(KafkaHeaders.RECEIVED_MESSAGE_KEY));
         logger.info("myProject Received a message : {}", message);
-        logger.info("key : {}", key);
+        logger.info("uuid : {}", message.getHeaders().getOrDefault("uuid", null));
+        logger.info("partition : {}", message.getHeaders().getOrDefault("kafka_receivedPartitionId", null));
+        logger.info("offset : {}", message.getHeaders().getOrDefault("kafka_offset", null));
 
         return message.getPayload();
     }
 
+    @StreamListener("errorChannel")
+    public void error(Message<?> message) {
+        System.out.println("Handling ERROR: " + message);
+    }
 
     @StreamListener(Reply.INPUT)
     public void reply(BookDTO reply) {
-        logger.info("Reply Book : {}", reply.getName());
+//        logger.info("Reply Book : {}", reply.getName());
     }
 
 

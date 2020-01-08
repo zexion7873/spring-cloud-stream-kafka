@@ -6,6 +6,12 @@ public class BookDTO {
 	private String author;
 	private String publicationDate;
 
+	public BookDTO(String name, String author, String publicationDate) {
+		this.name = name;
+		this.author = author;
+		this.publicationDate = publicationDate;
+	}
+
 
 	public String getName() {
 		return name;
