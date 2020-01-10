@@ -9,12 +9,18 @@ import org.springframework.messaging.SubscribableChannel;
 public interface MyProcessor {
 
     String INPUT = "my-in";
-
     @Input(INPUT)
     SubscribableChannel input();
 
     String OUTPUT = "my-out";
-
     @Output(OUTPUT)
     MessageChannel output();
+
+    String POLLIN = "poll-in";
+    @Input(POLLIN)
+    PollableMessageSource pollIn();
+
+    String POLLOUT = "poll-out";
+    @Output(POLLOUT)
+    MessageChannel pollOut();
 }
