@@ -5,7 +5,7 @@ import org.springframework.cloud.stream.binder.PartitionKeyExtractorStrategy;
 import org.springframework.messaging.Message;
 
 /**
- * @从Message中提取partitionkey的策略
+ * @從Message中提取partitionKey
  */
 public class PartitionKeyExtractor implements PartitionKeyExtractorStrategy {
 

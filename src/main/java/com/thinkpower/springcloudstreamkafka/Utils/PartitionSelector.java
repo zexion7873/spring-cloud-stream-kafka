@@ -4,7 +4,7 @@ import org.springframework.cloud.stream.binder.PartitionSelectorStrategy;
 import org.springframework.util.ObjectUtils;
 
 /**
- * @决定message发送到哪个partition的策略
+ * @決定message發送到哪個partition
  */
 public class PartitionSelector implements PartitionSelectorStrategy {
 

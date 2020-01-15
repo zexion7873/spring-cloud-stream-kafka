@@ -1,5 +1,8 @@
 package com.thinkpower.springcloudstreamkafka.DTO;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+
 public class MessageDTO {
 
     private Long id;
@@ -35,7 +38,8 @@ public class MessageDTO {
         this.hasConsume = hasConsume;
     }
 
+    @Override
     public String toString() {
-        return "";
+        return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
     }
 }
