@@ -5,14 +5,14 @@ spring:
   cloud:
     stream:
       # 同一个应用的实例数量和实例索引
-      instance-count: 2
-      instance-index: 0
-      default-binder: kafka # 默認綁定器
-      default:
-        consumer:
-          headerMode: headers
-          partitioned: true
-          concurrency: 1
+#      instance-count: 2
+#      instance-index: 0
+#      default-binder: kafka # 默認綁定器
+#      default:
+#        consumer:
+#          headerMode: headers
+#          partitioned: true
+#          concurrency: 1
 #        producer:
 #          partitionKeyExpression: payload.id
 #          partitionCount: 2
@@ -20,46 +20,60 @@ spring:
 #          partitionSelectorName: PartitionSelector
 
       bindings:
-        my-in: # 通道名稱
+        myInput: # 通道名稱
           binder: kafka
           destination: testTopic # 訊息發送的目的地，對應 topic
-          content-type: application/json # 訊息格式
-          group: testTopic-input-group # 對應 kafka 的 group
-        my-out:
-          binder: kafka
+          group: myGroup # 對應 kafka 的 group
+          contentType: application/json # 訊息格式
+          consumer:
+            maxAttempts: 1 # 訊息處理失敗的重試次數，包含初次
+#            backOffInitialInterval: 1000
+#            backOffMaxInterval: 10000
+#            backOffMultiplier: 2.0
+#            headerMode: headers
+#            partitioned: true
+#            concurrency: 1
+        myOutput:
+#          binder: kafka
           destination: reply
-          content-type: application/json
+          contentType: application/json
         poll-in:
-          binder: kafka
+#          binder: kafka
           destination: polledConsumer
-          content-type: application/json
-          group: polledConsumer-input-group
+          contentType: application/json
+          group: polledConsumer-input-group-1
         poll-out:
-          binder: kafka
+#          binder: kafka
           destination: reply
-          content-type: application/json
+          contentType: application/json
+        error:
+          destination: myErrors.
+
 
       kafka: # 如果用的是 rabbitMQ 這裡填 rabbit
         binder:
           brokers: # Kafka 的訊息中間件服務位址
           - localhost:9092
-          auto-add-partitions: true
-          auto-create-topics: true
-          headers: key
+          autoAddPartitions: false
+          autoCreateTopics: true
+#          headers: key
         bindings:
-          my-in:
+          myInput:
             consumer:
-              auto-commit-offset: false
-              auto-rebalance-enabled: false
-          poll-in:
-            consumer:
-              auto-commit-offset: false
-              auto-rebalance-enabled: false
+              autoCommitOffset: false
+#              autoCommitOnError: false
+#              autoRebalanceEnabled: false
+#              enableDlq: true
+#              dlqName: dlq-in
+#          poll-in:
+#            consumer:
+#              autoCommitOffset: false
+#              auto-rebalance-enabled: false
 
   kafka:
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
     consumer:
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      enable-auto-commit: false
+#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      enable-auto-commit: false

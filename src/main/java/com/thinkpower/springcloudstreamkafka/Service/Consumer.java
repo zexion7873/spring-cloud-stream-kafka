@@ -4,121 +4,114 @@ import com.thinkpower.springcloudstreamkafka.DTO.MessageDTO;
 import com.thinkpower.springcloudstreamkafka.Interface.MyProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.StreamListener;
-import org.springframework.cloud.stream.binder.PollableMessageSource;
-import org.springframework.context.annotation.Bean;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.cloud.stream.binder.BinderHeaders;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.scheduling.annotation.Scheduled;
+
+import javax.annotation.Resource;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @EnableBinding({MyProcessor.class})
 public class Consumer {
 
     private static final Logger logger = LoggerFactory.getLogger(Consumer.class);
 
-    @Autowired
+    @Resource
     private MyProcessor myProcessor;
 
+    private static final String RETRIES_HEADER = "retries";
+
+    private final AtomicInteger processed = new AtomicInteger();
+
     /**
-     *
+     * 訊息監聽, 回覆
      * @param message 接收到的 Message
-     * @return Message<MessageDTO>
      */
-    @StreamListener(target = MyProcessor.INPUT)
-    @SendTo({MyProcessor.OUTPUT})
+    @StreamListener(MyProcessor.INPUT)
+    @SendTo(MyProcessor.OUTPUT)
     public Message<MessageDTO> consume(Message<MessageDTO> message) {
 
-        logger.info("myProject Received a message : {}", message);
-        logger.info("id : {}", message.getPayload().getId());
+        logger.info("myApplication Received a message : {}", message);
+        logger.info("payload : {}", message.getPayload());
+        logger.info("receivedTopic : {}", message.getHeaders().getOrDefault(KafkaHeaders.RECEIVED_TOPIC, null));
+        logger.info("replyTopic : {}", message.getHeaders().getOrDefault(KafkaHeaders.REPLY_TOPIC, null));
+        logger.info("offset : {}", message.getHeaders().getOrDefault(KafkaHeaders.OFFSET, null));
 
-        MessageDTO payload = checkConsume(message.getPayload());
-        offsetCommit(message);
-
-        return MessageBuilder.withPayload(payload).copyHeaders(message.getHeaders()).build();
+        if (message.getPayload().getId() %2 != 0) {
+            throw new RuntimeException("BOOM!");
+        } else {
+            MessageDTO messageDTO = message.getPayload();
+            messageDTO.setHasConsume(true);
+            // 手動 commit offset
+            offsetCommit(message);
+            // 組成回覆的 Message 物件
+            return MessageBuilder
+                    .withPayload(messageDTO)
+                    .copyHeaders(message.getHeaders())
+                    .build();
+        }
     }
 
-    /**
-     * Poll Message
-     * @param pollIn 訂閱通道
-     * @param pollOut 推播通道
-     * @return ApplicationRunner
-     */
-    @Bean
-    public ApplicationRunner poller(PollableMessageSource pollIn,
-                                    @Qualifier("my-out") MessageChannel pollOut) {
-        return args -> {
-            // some condition
-            while (true) {
-                boolean result = pollIn.poll(message -> {
+    @ServiceActivator(inputChannel = "testTopic.myGroup.errors")
+    public void error(ErrorMessage errorMessage) {
+        System.err.println("In Error");
+        System.err.println("errorMessage : " + errorMessage);
+        System.err.println("OriginalMessage : " + errorMessage.getOriginalMessage());
+        errorMessage.getPayload().getMessage();
 
-                    logger.info("myProject Received a message : {}", message);
-                    MessageDTO payload = checkConsume((MessageDTO) message.getPayload());
-                    logger.info("Received: " + payload);
-                    pollOut.send(MessageBuilder.withPayload(payload)
-                            .copyHeaders(message.getHeaders())
-                            .build());
-                        }, new ParameterizedTypeReference<MessageDTO>() {}
-                    );
-                if (result) {
-                    logger.info("Processed a message");
-                }
-                else {
-                    logger.info("Nothing to do");
-                    Thread.sleep(1_000);
-                }
-            }
-        };
+//        myProcessor.output().send(errorMessage.getOriginalMessage());
     }
-
-
-//    @StreamListener(target = MyProcessor.INPUT, condition = "headers['key'] %2 == 0")
-//    public void consume(Message<MessageDTO> message) {
-//
-//        logger.info("myProject Received a message : {}", message);
-//        logger.info("id : {}", message.getPayload().getId());
-//
-//        if (message.getPayload() instanceof MessageDTO) {
-//            MessageDTO messageDTO = message.getPayload();
-//            messageDTO.setHasConsume(true);
-//            Message<MessageDTO> replyMessage = MessageBuilder
-//                    .withPayload(messageDTO)
-//                    .copyHeaders(message.getHeaders())
-//                    .build();
-//            myProcessor.output().send(replyMessage);
-//        }
-//
-//        offsetCommit(message);
-//
+//    @StreamListener("errorChannel")
+//    public void errorGlobal(ErrorMessage errorMessage) {
+//        System.err.println("In ErrorGlobal");
+//        System.err.println("ErrorMessage : " + errorMessage);
+//        System.err.println("OriginalMessage : " + errorMessage.getPayload());
 //    }
 
 
-
-
-    @StreamListener("errorChannel")
-    public void error(Message<MessageDTO> message) {
-        System.out.println("Handling ERROR: " + message);
-    }
-
-    private MessageDTO checkConsume(MessageDTO payload) {
-        payload.setHasConsume(true);
-
-        return  payload;
+//    @StreamListener(MyProcessor.INPUT)
+//    @SendTo(MyProcessor.OUTPUT)
+    public Message<?> reRoute(Message<?> failed) {
+        processed.incrementAndGet();
+        Integer retries = failed.getHeaders().get(RETRIES_HEADER, Integer.TYPE);
+        if (retries == null) {
+            System.out.println("First retry for " + failed);
+            return MessageBuilder.fromMessage(failed)
+                    .setHeader(RETRIES_HEADER,1)
+                    .setHeader(BinderHeaders.PARTITION_OVERRIDE,
+                            failed.getHeaders().get(KafkaHeaders.RECEIVED_PARTITION_ID))
+                    .build();
+        }
+        else if (retries < 3) {
+            System.out.println("Another retry for " + failed);
+            return MessageBuilder.fromMessage(failed)
+                    .setHeader(RETRIES_HEADER, retries + 1)
+                    .setHeader(BinderHeaders.PARTITION_OVERRIDE,
+                            failed.getHeaders().get(KafkaHeaders.RECEIVED_PARTITION_ID))
+                    .build();
+        }
+        else {
+            System.out.println("Retries exhausted for " + failed);
+            myProcessor.dlqOut().send(MessageBuilder.fromMessage(failed)
+                    .setHeader(BinderHeaders.PARTITION_OVERRIDE,
+                            failed.getHeaders().get(KafkaHeaders.RECEIVED_PARTITION_ID))
+                    .build());
+        }
+        return null;
     }
 
     /**
      * 手動 Commit Offset
      * @param message 訊息
      */
-    private void offsetCommit(Message<MessageDTO> message) {
+    private void offsetCommit(Message<?> message) {
         Acknowledgment acknowledgment = message.getHeaders()
                 .get(KafkaHeaders.ACKNOWLEDGMENT, Acknowledgment.class);
 
@@ -128,23 +121,6 @@ public class Consumer {
             acknowledgment.acknowledge();
         }
     }
-
-
-
-    @Scheduled(fixedDelay = 5_000)
-    public void poll() {
-        logger.info("Start Poll Message");
-        // 拉所有 Message
-        boolean hasMessage = true;
-        while (hasMessage) {
-            myProcessor.pollIn().poll(message -> {
-                logger.info("myProject Received a message : {}", message);
-                MessageDTO payload = checkConsume((MessageDTO) message.getPayload());
-                logger.info("id : {}", payload.getId());
-            });
-        }
-    }
-
 
 }
 
