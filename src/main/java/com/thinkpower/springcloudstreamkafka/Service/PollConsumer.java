@@ -15,7 +15,7 @@ import org.springframework.messaging.support.MessageBuilder;
 
 import javax.annotation.Resource;
 
-@EnableBinding
+//@EnableBinding
 public class PollConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(PollConsumer.class);
